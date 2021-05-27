@@ -1,5 +1,6 @@
 package com.example.addshortcutdemo;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
@@ -15,6 +16,8 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
+
+import static android.content.ContentValues.TAG;
 
 public class MainActivity extends AppCompatActivity {
     TextView tvPermission;
@@ -35,7 +38,7 @@ public class MainActivity extends AppCompatActivity {
                     return;
                 }
 
-                String[] permissions = {Manifest.permission.INSTALL_SHORTCUT};
+                String[] permissions = {Manifest.permission.INSTALL_SHORTCUT, Manifest.permission.READ_SYNC_SETTINGS};
                 if(ContextCompat.checkSelfPermission(MainActivity.this, permissions[0]) != PackageManager.PERMISSION_GRANTED) {
                     ActivityCompat.requestPermissions(MainActivity.this, permissions, PERMISSION_REQUEST);
                 }
@@ -56,6 +59,21 @@ public class MainActivity extends AppCompatActivity {
                 runtimeSettingPage.start();
             }
         });
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if(requestCode == 0) {
+            try {
+                super.onResume();
+                tvPermission.setText(getPermission());
+
+            }catch(Exception e){
+                e.printStackTrace();
+            }
+        }
+
     }
 
     @Override
