@@ -18,18 +18,60 @@ import android.os.Build;
 import android.provider.Settings;
 import android.widget.Toast;
 
+import androidx.annotation.IntDef;
+
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
 import java.util.List;
+import java.util.logging.Logger;
 import java.util.regex.Pattern;
 
 import static android.content.Context.SHORTCUT_SERVICE;
+import static com.example.addshortcutdemo.ShortcutPermissionChecker.checkOnEMUI;
+import static com.example.addshortcutdemo.ShortcutPermissionChecker.checkOnMIUI;
+import static com.example.addshortcutdemo.ShortcutPermissionChecker.checkOnOPPO;
+import static com.example.addshortcutdemo.ShortcutPermissionChecker.checkOnVIVO;
 
 public class ShortcutManage {
-    public static void addShortcut(Context context, int drawableId, String route, String name) {
-        if (hasShortcut(context, name) || hasShortCut1(context, name) || hasShortcutO(context, name)) {
-            Toast.makeText(context,"已经有桌面快捷方式了", Toast.LENGTH_SHORT).show();
-            return;
-        }
 
+    private static final String TAG = "ShortcutPermission";
+    @IntDef(value = {
+            PERMISSION_GRANTED,
+            PERMISSION_DENIED,
+            PERMISSION_ASK,
+            PERMISSION_UNKNOWN
+    })
+    @Retention(RetentionPolicy.SOURCE)
+    public @interface PermissionResult {}
+
+    public static final int PERMISSION_GRANTED = 0;
+
+    public static final int PERMISSION_DENIED = -1;
+
+    public static final int PERMISSION_ASK = 1;
+
+    public static final int PERMISSION_UNKNOWN = 2;
+
+    private static final String MARK = Build.MANUFACTURER.toLowerCase();
+
+    @PermissionResult
+    public static int check(Context context) {
+        int result = PERMISSION_UNKNOWN;
+        if (MARK.contains("huawei")) {
+            result = checkOnEMUI(context);
+        } else if (MARK.contains("xiaomi")) {
+            result = checkOnMIUI(context);
+        } else if (MARK.contains("oppo")) {
+            result = checkOnOPPO(context);
+        } else if (MARK.contains("vivo")) {
+            result = checkOnVIVO(context);
+        } else if (MARK.contains("samsung") || MARK.contains("meizu")) {
+            result = PERMISSION_GRANTED;
+        }
+        return result;
+    }
+
+    public static void addShortcut(Context context, int drawableId, String route, String name) {
         //Android o以上的版本用ShortcutManager来管理快捷方式
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             ShortcutManager scm = (ShortcutManager) context.getSystemService(SHORTCUT_SERVICE);
@@ -62,42 +104,16 @@ public class ShortcutManage {
 
     }
 
-    public static boolean hasShortcut(Context context, String name) {
-        boolean result = false;
-        try {
-            final String uriStr;
-            int sdkInt = android.os.Build.VERSION.SDK_INT;
-            if (sdkInt < 8) {
-                uriStr = "content://com.android.launcher.settings/favorites?notify=true";
-            } else if (sdkInt < 19) {
-                uriStr = "content://com.android.launcher2.settings/favorites?notify=true";
-            } else {
-                uriStr = "content://com.android.launcher3.settings/favorites?notify=true";
+    public static boolean shortcutHigh(Context context, String name) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N_MR1) {
+            ShortcutManager scm = (ShortcutManager) context.getSystemService(SHORTCUT_SERVICE);
+            List<ShortcutInfo> shortcutInfoList = scm.getPinnedShortcuts();
+            for(ShortcutInfo pinnedShortcut : shortcutInfoList){
+                if(pinnedShortcut.getId().equals("tecentmap")){
+                    return true;
+                }
             }
-            final Uri CONTENT_URI = Uri.parse(uriStr);
-            final Cursor cursor = context.getContentResolver().query(CONTENT_URI, null,
-                    "title=?", new String[]{name}, null);
-            if (cursor != null && cursor.getCount() > 0) {
-                result = true;
-            }
-        } catch (Exception e){
-            System.out.println(e.getMessage());
         }
-        return result;
-
-    }
-
-    private static boolean hasShortCut1(Context context, String name) {    //判断快捷键是否存在 方法一
-        ContentResolver resolver = context.getContentResolver();
-        Cursor cursor = resolver.query(Uri
-                                .parse("content://com.android.launcher.settings/favorites?notify=true"),
-                        null, "title=?", new String[] {name}, null);
-
-        if (cursor != null && cursor.moveToFirst()) {
-            cursor.close();
-            return true;
-        }
-
         return false;
     }
 
@@ -126,7 +142,7 @@ public class ShortcutManage {
 
     }
 
-    public static boolean hasShortcutO(Context context, String appName) {
+    public static boolean hasShortcutLow(Context context, String appName) {
         long start = System.currentTimeMillis();
         String authority = getAuthorityFromPermission(context, appName);
         if (authority == null) {
